@@ -1,0 +1,24 @@
+{
+  "name": "electric-analyzer-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Open-source utility bill analytics: why is my electric/gas bill going up?",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.12"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "pnpm -r --filter=./packages/* build && pnpm --filter web build",
+    "dev": "pnpm --filter web dev",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "test": "pnpm -r test",
+    "secret-scan": "bash scripts/secret-scan.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "typescript-eslint": "^8.12.0"
+  }
+}

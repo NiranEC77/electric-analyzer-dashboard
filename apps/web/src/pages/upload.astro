@@ -1,0 +1,14 @@
+---
+import Layout from "../components/Layout.astro";
+import { UploadBills } from "../islands/UploadBills";
+---
+
+<Layout title="Upload bills">
+  <UploadBills client:load />
+</Layout>
+
+<script>
+  window.addEventListener("bills-saved", () => {
+    window.location.href = "/";
+  });
+</script>

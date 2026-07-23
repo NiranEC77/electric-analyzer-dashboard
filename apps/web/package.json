@@ -1,0 +1,30 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "typecheck:astro": "astro check"
+  },
+  "dependencies": {
+    "astro": "^4.16.13",
+    "@astrojs/react": "^3.6.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.13.3",
+    "pdfjs-dist": "^4.7.76",
+    "@electric-analyzer/core": "workspace:*",
+    "@electric-analyzer/adapters": "workspace:*",
+    "@electric-analyzer/demo-data": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@astrojs/check": "^0.9.4",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1"
+  }
+}

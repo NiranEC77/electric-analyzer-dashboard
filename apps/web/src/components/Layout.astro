@@ -1,0 +1,30 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Electric Analyzer Dashboard</title>
+    <meta
+      name="description"
+      content="Open-source utility bill analytics: decompose why your electric/gas bill is going up into price, consumption, and fees."
+    />
+  </head>
+  <body>
+    <nav class="container" style="padding-bottom: 0; display: flex; gap: 1.5rem; align-items: baseline;">
+      <strong>Electric Analyzer Dashboard</strong>
+      <a href="/">Dashboard</a>
+      <a href="/upload">Upload bills</a>
+    </nav>
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "@electric-analyzer/timeseries",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Interval-data source interface for Green Button imports and sensor ingestion (whole-panel monitors, smart plugs). Phase E: interface only, not implemented.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
