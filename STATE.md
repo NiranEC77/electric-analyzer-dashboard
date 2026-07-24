@@ -4,13 +4,36 @@ Last updated: 2026-07-23
 
 ## Phase
 
-v0.1 scaffold complete, pushed, CI green, deployed. Full lean-MVP surface
-implemented and tested (core decomposition + verifier + rules, adapters,
-demo-data, web dashboard). Live at
-`https://electric-analyzer-dashboard.vercel.app` (Vercel auto-deploys `main`).
-CI (GitHub Actions) passing: secret-scan + typecheck/lint/test/build.
+v0.1 shipped and live, then extended past the original lean-MVP scope in
+direct response to real usage feedback from Niran (using his own real PSE&G
+bills, not just demo data). Live at
+`https://electric-analyzer-dashboard.vercel.app` (Vercel auto-deploys
+`main`). CI green: secret-scan + typecheck/lint/test/build. 38 tests.
 
-Next real work is v0.2 (weather normalization) — see below.
+Since the original v0.1 scaffold, in order:
+1. **Real PSE&G adapter**, rewritten from an actual bill (never committed —
+   synthetic fixture only). Added `currentCharges`/`previousBalance`/
+   `payments` to `BillFacts` so a carried-over unpaid balance is never
+   attributed to a price/usage/fee change. Fixed pdf.js text extraction
+   (was emitting one glyph per item — rewrote to coordinate-based line
+   reconstruction).
+2. **Plain-language explanation + real histogram**, replacing effect-jargon
+   headline cards. New `packages/core/src/narrative` module, verified
+   through the same `assertGrounded` gate as suggestions.
+3. **Full-history decomposition** (`decomposeHistory`), chaining the
+   pairwise math across every bill on file — not just latest-vs-previous.
+   Fixed a real bug this surfaced: several charts were reading
+   IndexedDB/upload order, not chronological order.
+4. **Real degree-day fetch** (`openMeteoDegreeDaySource`, no API key) +
+   user-entered location (never scraped from a bill) + an "Is it the
+   weather?" dashboard panel. This is `v0.2`'s degree-day piece landing
+   early, by direct request — the regression fit (`fitWeatherModel`,
+   baseload trend) is still a stub. Also wired the previously-stubbed
+   export/import JSON to real UI buttons.
+
+See devlog.md for the narrative version of all of this, including the
+verification methodology (hand-derived arithmetic against the real bill,
+independent weather corroboration via a second data source).
 
 ## Locked decisions (v0.1)
 
@@ -33,9 +56,11 @@ Next real work is v0.2 (weather normalization) — see below.
   composition chart, effective-rate line chart → price/fees/insufficient-
   data rules only → demo mode → deploys to Vercel with zero required env
   vars.
-- **Deferred to v0.2:** weather normalization (NOAA GHCN fetch + regression),
-  baseload trend chart, scatter-vs-degree-days chart, baseload/weather rules,
-  anomaly-flag refinement.
+- **Deferred to v0.2 (partially landed — see Phase):** the degree-day fetch
+  is real (`openMeteoDegreeDaySource`); still deferred: the
+  `kWh = baseload + a·CDD + b·HDD` regression fit, baseload trend chart,
+  scatter-vs-degree-days chart, baseload/weather rules, anomaly-flag
+  refinement.
 - **Deferred to v0.3:** additional utility adapters, refined anomaly
   detection.
 - **Phase E (interfaces only, not implemented):** `TimeSeriesSource` for
@@ -43,9 +68,8 @@ Next real work is v0.2 (weather normalization) — see below.
 
 ## Target repo
 
-`github.com/NiranEC77/electric-analyzer-dashboard` — confirmed empty
-(no refs) as of 2026-07-23. Nothing pushed yet; local commit only until
-explicitly confirmed with Niran.
+`github.com/NiranEC77/electric-analyzer-dashboard` — pushed, `main`, CI
+green, deployed to Vercel. See "Deploy / CI notes" below.
 
 ## Environment notes (this working machine, not the app)
 
@@ -74,8 +98,18 @@ explicitly confirmed with Niran.
 
 ## Next steps
 
-1. v0.2: weather normalization (NOAA GHCN degree-day fetch + regression),
-   baseload trend chart, scatter-vs-degree-days chart, baseload/weather
-   rules. Interfaces already stubbed in `packages/core/src/weather`.
-2. Consider rotating the PAT to drop `workflow` scope once no further
+1. **Waiting on Niran:** the remaining ~13 real bills (only `feb26.pdf` has
+   been shared for verification so far) — either drop the PDFs at
+   `~/bill-samples/` on this machine, or use the new Export-JSON button on
+   `/upload` once they're loaded in the browser, so a real multi-month
+   history can be verified/analyzed end to end instead of demo data.
+2. v0.2 regression: `fitWeatherModel` (still a stub) — fit
+   `kWh = baseload + a·CDD + b·HDD` using `openMeteoDegreeDaySource`, add
+   the baseload trend chart and scatter-vs-degree-days chart.
+3. Hermes/local-agent research: tried once (`dispatch_to_hermes`), came back
+   empty — matches an existing fleet note that Jarvis's web_search lacks an
+   API key. `openMeteoDegreeDaySource` (free, no key) is filling that gap
+   directly for now; if Hermes's search gets fixed, it (or NOAA GHCN) can
+   implement `DegreeDaySource` and swap in — see docs/architecture.md.
+4. Consider rotating the PAT to drop `workflow` scope once no further
    workflow edits are expected.

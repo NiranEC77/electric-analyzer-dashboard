@@ -17,6 +17,7 @@ import { MonthlyTotalsChart } from "./charts/MonthlyTotalsChart";
 import { RateLineChart } from "./charts/RateLineChart";
 import { WaterfallChart, type WaterfallStep } from "./charts/WaterfallChart";
 import { ExplainThis } from "./ExplainThis";
+import { WeatherPanel } from "./WeatherPanel";
 
 function HeadlineCard({ label, value, sign = false }: { label: string; value: number; sign?: boolean }) {
   const formatted = `${sign && value > 0 ? "+" : ""}$${value.toFixed(2)}`;
@@ -243,6 +244,8 @@ export function Dashboard() {
             <h2>Where the change came from</h2>
             {waterfallSteps && <WaterfallChart steps={waterfallSteps} />}
           </section>
+
+          <WeatherPanel previous={previous} latest={latest} />
         </>
       ) : (
         <p>Upload at least two bills to see a decomposition.</p>

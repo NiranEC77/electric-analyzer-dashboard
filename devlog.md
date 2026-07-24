@@ -87,3 +87,88 @@ A few things worth remembering for the blog:
 
 Live at `https://electric-analyzer-dashboard.vercel.app`. v0.2 (weather
 normalization) is the next real chunk.
+
+## 2026-07-23/24 — Real bills, real bugs, and a trust audit
+
+Niran tried uploading his actual 14 monthly PSE&G bills. All 14 failed:
+"no adapter recognized this bill." The v0.1 PSE&G adapter had been an
+honest stub — regex patterns modeled on a *generic* utility-bill layout,
+explicitly commented as never having seen a real bill (real bills can't
+enter the repo). Time to fix that properly rather than guess again.
+
+Niran shared one real bill (`/tmp/feb26.pdf`, never committed, deleted from
+scratch dirs after use). Reading it top to bottom found three independent,
+concrete bugs, not one vague "parsing is hard":
+
+1. The sniff regex was exact-matching `PSE&G`, but pdf.js fragments that
+   into `PSE &G` — never matched.
+2. pdf.js was emitting this particular bill **one glyph per text item**
+   (`"T o t a l   e l e c t r i c"` after a naive `join(" ")`). Rewrote
+   extraction to group glyphs into lines by y-coordinate and space only on
+   real horizontal gaps — recovered clean text, verified against the real
+   bill through the actual browser code path (0 warnings after the fix).
+3. The adapter's field patterns didn't match the real layout at all — full
+   rewrite from the actual bill structure (multi-column, apostrophes
+   flattened to spaces by the PDF text layer, a `previous balance / payment
+   received / this month's charges / total due` structure that the v0.1
+   stub had no concept of).
+
+That last point turned into a real modeling gap: PSE&G bills carry an
+unpaid balance forward. The original decomposition compared *total amount
+due* period to period, so a late payment would show up as a huge fake
+"price/usage/fees increase." Added `currentCharges` / `previousBalance` /
+`payments` to `BillFacts` and moved decomposition to reconcile against
+current charges only — carryover shows in its own banner instead of
+polluting the analysis.
+
+Then two rounds of "this isn't clear" feedback, both handled by adding real
+grounded output rather than restyling:
+
+- **"the graphs are not clear and neither the explanations."** Added a
+  `packages/core/src/narrative` module — deterministic plain-English
+  sentences ("Your bill went up $67.58... mostly because of how much energy
+  you used") verified through the exact same `assertGrounded` gate as
+  suggestions, plus a real histogram (bill-over-time bar chart). Property
+  test asserts the narrative never emits a numeral that isn't grounded, 300
+  runs.
+- **"this only analyzes this month vs last... we want the whole history."**
+  `decomposeHistory()` chains the existing pairwise decomposition across
+  every consecutive bill instead of comparing two endpoints — deliberately,
+  since comparing first-vs-last would hide a rate hike that got reversed
+  later (wrote a test with exactly that scenario to prove it). Surfaced a
+  real bug while wiring this up: several charts were reading bills in
+  IndexedDB/upload-insertion order, not chronological order.
+
+Then a direct ask: **"check the numbers... I want to know if it's
+trustable. Also I wonder if it's correlated to weather."** Rather than
+re-assert the automated tests were enough, re-derived every number in the
+real bill by hand against the source text (all matched — found one honest
+methodology caveat: PSE&G bundles the flat monthly service charge inside
+the volumetric delivery total, which the model currently treats as
+volumetric too). For weather: tried dispatching to Hermes first (per
+Niran's ask) — came back empty, consistent with an existing fleet note
+that Jarvis's web_search lacks an API key. Fell back to Open-Meteo's free
+historical archive (no key) and independently computed the actual
+degree-day comparison rather than trusting either source blindly: 7.2°F
+colder by direct computation vs. PSE&G's own printed "6°F colder" — close
+enough to trust both. But heating degree-days were only up 19.5% while gas
+usage was up 31.9% and electric 14.9% — weather explains a good chunk of
+the gas increase, not all of it, and barely explains electric on a
+gas-heated home. That gap is the actual signal worth investigating
+(always-on load), not "it was just cold."
+
+Turned that into a real feature, not a one-off chat answer, per "I want the
+stuff to be in the system we are creating": `openMeteoDegreeDaySource` as a
+tested, real implementation of the already-stubbed `DegreeDaySource`
+interface; a user-entered (never bill-scraped) location, geocoded
+client-side and stored only in `localStorage`; a dashboard panel comparing
+bill periods against real degree-days. Also finally wired the long-stubbed
+export/import JSON to actual buttons — the sanctioned way data leaves the
+local-first browser store, which is also the answer to "how do I connect
+this to my local agents/lab": export, then hand the file to whatever you
+run yourself. The full weather-normalization regression fit
+(`fitWeatherModel`) stays an honest stub — real degree-days now, real
+baseload-vs-weather model still ahead.
+
+38 tests, all green throughout. Still waiting on the other 13 real bills to
+verify a real multi-month history end to end instead of demo data.
