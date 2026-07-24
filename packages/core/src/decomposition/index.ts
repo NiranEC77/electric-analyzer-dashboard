@@ -1,5 +1,5 @@
 import { decompositionBasis } from "../types/index.js";
-import type { BillFacts, DecompositionResult, EffectBreakdown } from "../types/index.js";
+import type { BillFacts, DecompositionResult, EffectBreakdown, HistoryDecomposition } from "../types/index.js";
 
 const RECONCILIATION_EPSILON = 0.01;
 
@@ -27,6 +27,16 @@ function computeEffect(period0: VolumetricPeriod, period1: VolumetricPeriod): Ef
 
 function zeroEffect(): EffectBreakdown {
   return { priceEffect: 0, consumptionEffect: 0, residual: 0 };
+}
+
+function computeShares(price: number, consumption: number, fees: number) {
+  const movement = Math.abs(price) + Math.abs(consumption) + Math.abs(fees);
+  if (movement === 0) return { price: 0, consumption: 0, fees: 0 };
+  return {
+    price: Math.round((Math.abs(price) / movement) * 100),
+    consumption: Math.round((Math.abs(consumption) / movement) * 100),
+    fees: Math.round((Math.abs(fees) / movement) * 100),
+  };
 }
 
 function addEffects(a: EffectBreakdown, b: EffectBreakdown): EffectBreakdown {
@@ -112,15 +122,7 @@ export function decompose(billA: BillFacts, billB: BillFacts): DecompositionResu
 
   const priceTotal = supply.priceEffect + delivery.priceEffect;
   const consumptionTotal = supply.consumptionEffect + delivery.consumptionEffect;
-  const movement = Math.abs(priceTotal) + Math.abs(consumptionTotal) + Math.abs(feesEffect);
-  const shares =
-    movement > 0
-      ? {
-          price: Math.round((Math.abs(priceTotal) / movement) * 100),
-          consumption: Math.round((Math.abs(consumptionTotal) / movement) * 100),
-          fees: Math.round((Math.abs(feesEffect) / movement) * 100),
-        }
-      : { price: 0, consumption: 0, fees: 0 };
+  const shares = computeShares(priceTotal, consumptionTotal, feesEffect);
 
   return {
     periodA: billA.id,
@@ -132,5 +134,58 @@ export function decompose(billA: BillFacts, billB: BillFacts): DecompositionResu
     totalChange,
     shares,
     checksPassed: Math.abs(computedTotal - totalChange) < RECONCILIATION_EPSILON,
+  };
+}
+
+/**
+ * Decomposes the change across an entire bill history — not just two
+ * periods — by chaining decompose() across every consecutive pair and
+ * summing each bucket's contribution. See HistoryDecomposition for why
+ * chaining (not a single first-vs-last comparison) is the right math here.
+ * Sorts internally by periodStart, so callers don't need to pre-sort.
+ * Returns undefined with fewer than two bills (nothing to compare).
+ */
+export function decomposeHistory(bills: BillFacts[]): HistoryDecomposition | undefined {
+  if (bills.length < 2) return undefined;
+
+  const sorted = [...bills].sort((a, b) => a.periodStart.value.localeCompare(b.periodStart.value));
+  const perPeriod: DecompositionResult[] = [];
+  for (let i = 1; i < sorted.length; i++) {
+    perPeriod.push(decompose(sorted[i - 1] as BillFacts, sorted[i] as BillFacts));
+  }
+
+  const cumulativePriceEffect = perPeriod.reduce(
+    (sum, d) => sum + d.supply.priceEffect + d.delivery.priceEffect,
+    0,
+  );
+  const cumulativeConsumptionEffect = perPeriod.reduce(
+    (sum, d) => sum + d.supply.consumptionEffect + d.delivery.consumptionEffect,
+    0,
+  );
+  const cumulativeFeesEffect = perPeriod.reduce((sum, d) => sum + d.feesEffect, 0);
+
+  const startCharge = decompositionBasis(sorted[0] as BillFacts);
+  const endCharge = decompositionBasis(sorted[sorted.length - 1] as BillFacts);
+  const totalChange = endCharge - startCharge;
+
+  const shares = computeShares(cumulativePriceEffect, cumulativeConsumptionEffect, cumulativeFeesEffect);
+
+  const computedTotal = cumulativePriceEffect + cumulativeConsumptionEffect + cumulativeFeesEffect;
+  // Each pairwise step is already exact; only floating-point noise accumulates
+  // across the chain, so tolerance scales gently with the number of periods.
+  const checksPassed = Math.abs(computedTotal - totalChange) < RECONCILIATION_EPSILON * perPeriod.length;
+
+  return {
+    periodStart: (sorted[0] as BillFacts).periodStart.value,
+    periodEnd: (sorted[sorted.length - 1] as BillFacts).periodStart.value,
+    startCharge,
+    endCharge,
+    totalChange,
+    cumulativePriceEffect,
+    cumulativeConsumptionEffect,
+    cumulativeFeesEffect,
+    shares,
+    perPeriod,
+    checksPassed,
   };
 }

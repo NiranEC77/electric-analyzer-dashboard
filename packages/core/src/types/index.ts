@@ -110,6 +110,37 @@ export interface DecompositionResult {
   checksPassed: boolean;
 }
 
+/** Anything describable by describeChange(): a net change plus what drove it. */
+export interface Movement {
+  totalChange: number;
+  shares: EffectShares;
+}
+
+/**
+ * The decomposition chained across an entire bill history, not just two
+ * periods. Built by summing the pairwise decompose() result for every
+ * consecutive pair — this is deliberate, not a shortcut: a single
+ * decompose(first, last) would only compare the two endpoints and could
+ * hide a rate hike that was later offset by a rate cut. Chaining captures
+ * every real movement along the way, the same way chained price indices
+ * work. Because each pairwise step is already exact, the chain sum still
+ * reconciles exactly to endCharge - startCharge.
+ */
+export interface HistoryDecomposition {
+  periodStart: string;
+  periodEnd: string;
+  startCharge: number;
+  endCharge: number;
+  totalChange: number;
+  cumulativePriceEffect: number;
+  cumulativeConsumptionEffect: number;
+  cumulativeFeesEffect: number;
+  shares: EffectShares;
+  /** Each consecutive pair's own decomposition, for a bill-by-bill breakdown. */
+  perPeriod: DecompositionResult[];
+  checksPassed: boolean;
+}
+
 export interface WeatherFit {
   serviceType: "electric" | "gas";
   baseload: number;
@@ -153,6 +184,7 @@ export interface Suggestion {
 export interface AnalysisContext {
   bills: BillFacts[];
   decomposition?: DecompositionResult;
+  historyDecomposition?: HistoryDecomposition;
   weatherFit?: WeatherFit;
   anomalies: AnomalyFlag[];
 }

@@ -1,4 +1,19 @@
-import type { AnalysisContext } from "../types/index.js";
+import type { AnalysisContext, DecompositionResult } from "../types/index.js";
+
+function pushDecompositionValues(values: number[], d: DecompositionResult): void {
+  values.push(
+    d.supply.priceEffect,
+    d.supply.consumptionEffect,
+    d.delivery.priceEffect,
+    d.delivery.consumptionEffect,
+    d.feesEffect,
+    d.totalChange,
+    d.shares.price,
+    d.shares.consumption,
+    d.shares.fees,
+  );
+  for (const f of d.feesBreakdown) values.push(f.delta);
+}
 
 export interface VerificationFailure {
   numeral: number;
@@ -51,19 +66,23 @@ export function collectGroundedValues(context: AnalysisContext): number[] {
   }
 
   if (context.decomposition) {
-    const d = context.decomposition;
+    pushDecompositionValues(values, context.decomposition);
+  }
+
+  if (context.historyDecomposition) {
+    const h = context.historyDecomposition;
     values.push(
-      d.supply.priceEffect,
-      d.supply.consumptionEffect,
-      d.delivery.priceEffect,
-      d.delivery.consumptionEffect,
-      d.feesEffect,
-      d.totalChange,
-      d.shares.price,
-      d.shares.consumption,
-      d.shares.fees,
+      h.totalChange,
+      h.startCharge,
+      h.endCharge,
+      h.cumulativePriceEffect,
+      h.cumulativeConsumptionEffect,
+      h.cumulativeFeesEffect,
+      h.shares.price,
+      h.shares.consumption,
+      h.shares.fees,
     );
-    for (const f of d.feesBreakdown) values.push(f.delta);
+    for (const d of h.perPeriod) pushDecompositionValues(values, d);
   }
 
   if (context.weatherFit) {

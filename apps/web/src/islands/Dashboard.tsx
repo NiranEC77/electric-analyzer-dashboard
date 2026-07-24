@@ -4,14 +4,15 @@ import {
   assertGrounded,
   decompositionBasis,
   describeChange,
+  describeHistory,
   UngroundedNumeralError,
   type AnalysisContext,
   type BillFacts,
-  type DecompositionResult,
 } from "@electric-analyzer/core";
 import { indexedDbAdapter } from "../lib/storage/indexeddb";
 import { analyze, effectiveElectricRate, effectiveGasRate } from "../lib/analysis";
 import { CompositionChart } from "./charts/CompositionChart";
+import { DriversOverTimeChart } from "./charts/DriversOverTimeChart";
 import { MonthlyTotalsChart } from "./charts/MonthlyTotalsChart";
 import { RateLineChart } from "./charts/RateLineChart";
 import { WaterfallChart, type WaterfallStep } from "./charts/WaterfallChart";
@@ -27,15 +28,19 @@ function HeadlineCard({ label, value, sign = false }: { label: string; value: nu
   );
 }
 
-/** The plain-language summary — grounded and verified exactly like a suggestion. */
+/**
+ * The plain-language summary — grounded and verified exactly like a
+ * suggestion. Shared by the "latest bill" and "full history" sections; each
+ * computes its own narrative (describeChange vs describeHistory) and passes
+ * it in, since the verification/render logic is identical either way.
+ */
 function NarrativeBlock({
-  decomposition,
+  narrative,
   context,
 }: {
-  decomposition: DecompositionResult;
+  narrative: { headline: string; explanation: string };
   context: AnalysisContext;
 }) {
-  const narrative = describeChange(decomposition);
   const text = `${narrative.headline} ${narrative.explanation}`;
 
   try {
@@ -121,7 +126,14 @@ export function Dashboard() {
     return <p className="container">Loading...</p>;
   }
 
-  const { decomposition, suggestions, context, previous, latest } = analysis;
+  // analysis.bills is chronologically sorted (analyze() sorts by periodStart) —
+  // every chart must read from this, not the raw `bills` state, which reflects
+  // IndexedDB/upload insertion order and is NOT guaranteed to be chronological.
+  const { bills: sortedBills, decomposition, history, suggestions, context, previous, latest } = analysis;
+
+  // history.perPeriod[i] is the decomposition from sortedBills[i] to
+  // sortedBills[i+1], so its label is the "to" bill's period.
+  const driverPeriodLabels = sortedBills.slice(1).map((b) => b.periodStart.value);
 
   // Base/end bars use decompositionBasis (this period's own charges), matching
   // what the decomposition actually reconciles against — see packages/core.
@@ -140,11 +152,11 @@ export function Dashboard() {
       ]
     : null;
 
-  const electricRatePoints = bills
+  const electricRatePoints = sortedBills
     .map((b) => ({ period: b.periodStart.value, rate: effectiveElectricRate(b) }))
     .filter((p): p is { period: string; rate: number } => p.rate !== undefined);
 
-  const gasRatePoints = bills
+  const gasRatePoints = sortedBills
     .map((b) => ({ period: b.periodStart.value, rate: effectiveGasRate(b) }))
     .filter((p): p is { period: string; rate: number } => p.rate !== undefined);
 
@@ -160,8 +172,32 @@ export function Dashboard() {
 
       <section className="section">
         <h2>Your bill over time</h2>
-        <MonthlyTotalsChart bills={bills} />
+        <MonthlyTotalsChart bills={sortedBills} />
       </section>
+
+      {history && (
+        <section className="section">
+          <h2>The big picture</h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "-0.5rem" }}>
+            {sortedBills.length} bills on file, {history.periodStart} to {history.periodEnd}
+          </p>
+          <NarrativeBlock narrative={describeHistory(history)} context={context} />
+          <div className="headline-grid">
+            <HeadlineCard label="Total change" value={history.totalChange} sign />
+            <HeadlineCard label="From rate changes" value={history.cumulativePriceEffect} sign />
+            <HeadlineCard label="From usage changes" value={history.cumulativeConsumptionEffect} sign />
+            <HeadlineCard label="From fees & credits" value={history.cumulativeFeesEffect} sign />
+          </div>
+          {!history.checksPassed && (
+            <p className="verification-error">
+              Reconciliation check failed across the bill history: cumulative effects don't sum to the total change
+              within tolerance. This should never happen — please file an issue.
+            </p>
+          )}
+          <h3 style={{ fontSize: "1rem", marginTop: "2rem" }}>What drove it, bill by bill</h3>
+          <DriversOverTimeChart perPeriod={history.perPeriod} periodLabels={driverPeriodLabels} />
+        </section>
+      )}
 
       {latest?.previousBalance && latest.previousBalance.value > 0 && (
         <div className="banner" role="note">
@@ -179,7 +215,8 @@ export function Dashboard() {
 
       {decomposition ? (
         <>
-          <NarrativeBlock decomposition={decomposition} context={context} />
+          <h2>Your latest bill</h2>
+          <NarrativeBlock narrative={describeChange(decomposition)} context={context} />
 
           <div className="headline-grid">
             <HeadlineCard label="Total change" value={decomposition.totalChange} sign />
@@ -213,7 +250,7 @@ export function Dashboard() {
 
       <section className="section">
         <h2>Bill composition over time</h2>
-        <CompositionChart bills={bills} />
+        <CompositionChart bills={sortedBills} />
       </section>
 
       {electricRatePoints.length > 1 && (
