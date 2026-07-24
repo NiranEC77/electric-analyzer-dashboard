@@ -44,6 +44,8 @@ explicitly confirmed with Niran.
 
 ## Environment notes (this working machine, not the app)
 
+- Repo lives at `~/code/electric-dashboard-analyzer`. Git repos go under
+  `~/code`, not `~/chats` (the latter is for non-git working dirs).
 - Node v18.19.1, no system pnpm — installed via `npm install -g pnpm@9`
   (pnpm 9.15.9 lands in `~/.npm-global/bin`, not on PATH by default in
   non-interactive shells because `~/.bashrc` early-returns for non-
