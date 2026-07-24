@@ -59,6 +59,9 @@ export function collectGroundedValues(context: AnalysisContext): number[] {
       d.delivery.consumptionEffect,
       d.feesEffect,
       d.totalChange,
+      d.shares.price,
+      d.shares.consumption,
+      d.shares.fees,
     );
     for (const f of d.feesBreakdown) values.push(f.delta);
   }

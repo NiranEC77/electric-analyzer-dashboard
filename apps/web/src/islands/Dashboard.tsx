@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { generateDemoBills } from "@electric-analyzer/demo-data";
-import { assertGrounded, UngroundedNumeralError, type BillFacts } from "@electric-analyzer/core";
+import {
+  assertGrounded,
+  decompositionBasis,
+  describeChange,
+  UngroundedNumeralError,
+  type AnalysisContext,
+  type BillFacts,
+  type DecompositionResult,
+} from "@electric-analyzer/core";
 import { indexedDbAdapter } from "../lib/storage/indexeddb";
 import { analyze, effectiveElectricRate, effectiveGasRate } from "../lib/analysis";
 import { CompositionChart } from "./charts/CompositionChart";
+import { MonthlyTotalsChart } from "./charts/MonthlyTotalsChart";
 import { RateLineChart } from "./charts/RateLineChart";
 import { WaterfallChart, type WaterfallStep } from "./charts/WaterfallChart";
 import { ExplainThis } from "./ExplainThis";
@@ -14,6 +23,36 @@ function HeadlineCard({ label, value, sign = false }: { label: string; value: nu
     <div className="card">
       <div className="headline-label">{label}</div>
       <div className="headline-value num">{formatted}</div>
+    </div>
+  );
+}
+
+/** The plain-language summary — grounded and verified exactly like a suggestion. */
+function NarrativeBlock({
+  decomposition,
+  context,
+}: {
+  decomposition: DecompositionResult;
+  context: AnalysisContext;
+}) {
+  const narrative = describeChange(decomposition);
+  const text = `${narrative.headline} ${narrative.explanation}`;
+
+  try {
+    assertGrounded(text, context);
+  } catch (err) {
+    const message = err instanceof UngroundedNumeralError ? err.message : "Verification failed";
+    return (
+      <div className="narrative verification-error">
+        <p>Verification failed for the summary: {message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="narrative">
+      <p className="headline">{narrative.headline}</p>
+      <p className="explanation">{narrative.explanation}</p>
     </div>
   );
 }
@@ -84,16 +123,20 @@ export function Dashboard() {
 
   const { decomposition, suggestions, context, previous, latest } = analysis;
 
+  // Base/end bars use decompositionBasis (this period's own charges), matching
+  // what the decomposition actually reconciles against — see packages/core.
+  // Using totalCharge here instead would make the bars not add up whenever a
+  // bill carries a balance from a prior unpaid bill.
   const waterfallSteps: WaterfallStep[] | null = decomposition
     ? [
-        { label: "Previous bill", delta: previous!.totalCharge.value, isTotal: true },
-        { label: "Price", delta: decomposition.supply.priceEffect + decomposition.delivery.priceEffect },
+        { label: "Previous bill", delta: decompositionBasis(previous!), isTotal: true },
+        { label: "Rate changes", delta: decomposition.supply.priceEffect + decomposition.delivery.priceEffect },
         {
-          label: "Consumption",
+          label: "Usage changes",
           delta: decomposition.supply.consumptionEffect + decomposition.delivery.consumptionEffect,
         },
-        { label: "Fees", delta: decomposition.feesEffect },
-        { label: "Current bill", delta: latest!.totalCharge.value, isTotal: true },
+        { label: "Fees & credits", delta: decomposition.feesEffect },
+        { label: "Current bill", delta: decompositionBasis(latest!), isTotal: true },
       ]
     : null;
 
@@ -115,6 +158,11 @@ export function Dashboard() {
 
       <h1>Why is your bill going up?</h1>
 
+      <section className="section">
+        <h2>Your bill over time</h2>
+        <MonthlyTotalsChart bills={bills} />
+      </section>
+
       {latest?.previousBalance && latest.previousBalance.value > 0 && (
         <div className="banner" role="note">
           This bill's <strong>total amount due</strong> includes a{" "}
@@ -124,26 +172,28 @@ export function Dashboard() {
               {" "}(<span className="num">${latest.payments.value.toFixed(2)}</span> in payments applied)
             </>
           ) : null}
-          . The breakdown below is based on <strong>this month's charges only</strong>, so a carried-over balance
-          never gets counted as a price, usage, or fee increase.
+          . The summary and breakdown below are based on <strong>this month's charges only</strong>, so a
+          carried-over balance is never counted as a rate, usage, or fee increase.
         </div>
       )}
 
       {decomposition ? (
         <>
+          <NarrativeBlock decomposition={decomposition} context={context} />
+
           <div className="headline-grid">
             <HeadlineCard label="Total change" value={decomposition.totalChange} sign />
             <HeadlineCard
-              label="Price effect"
+              label="From rate changes"
               value={decomposition.supply.priceEffect + decomposition.delivery.priceEffect}
               sign
             />
             <HeadlineCard
-              label="Consumption effect"
+              label="From usage changes"
               value={decomposition.supply.consumptionEffect + decomposition.delivery.consumptionEffect}
               sign
             />
-            <HeadlineCard label="Fees effect" value={decomposition.feesEffect} sign />
+            <HeadlineCard label="From fees & credits" value={decomposition.feesEffect} sign />
           </div>
           {!decomposition.checksPassed && (
             <p className="verification-error">

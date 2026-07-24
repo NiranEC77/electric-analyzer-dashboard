@@ -127,6 +127,20 @@ a {
   font-size: 0.9rem;
 }
 
+.narrative {
+  margin: 1.5rem 0;
+}
+
+.narrative .headline {
+  font-size: 1.3rem;
+  margin: 0 0 0.4rem;
+}
+
+.narrative .explanation {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
 .suggestion {
   border-left: 3px solid var(--series-1);
   padding-left: 1rem;

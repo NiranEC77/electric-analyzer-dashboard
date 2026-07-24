@@ -110,6 +110,18 @@ export function decompose(billA: BillFacts, billB: BillFacts): DecompositionResu
     delivery.residual +
     feesEffect;
 
+  const priceTotal = supply.priceEffect + delivery.priceEffect;
+  const consumptionTotal = supply.consumptionEffect + delivery.consumptionEffect;
+  const movement = Math.abs(priceTotal) + Math.abs(consumptionTotal) + Math.abs(feesEffect);
+  const shares =
+    movement > 0
+      ? {
+          price: Math.round((Math.abs(priceTotal) / movement) * 100),
+          consumption: Math.round((Math.abs(consumptionTotal) / movement) * 100),
+          fees: Math.round((Math.abs(feesEffect) / movement) * 100),
+        }
+      : { price: 0, consumption: 0, fees: 0 };
+
   return {
     periodA: billA.id,
     periodB: billB.id,
@@ -118,6 +130,7 @@ export function decompose(billA: BillFacts, billB: BillFacts): DecompositionResu
     feesEffect,
     feesBreakdown,
     totalChange,
+    shares,
     checksPassed: Math.abs(computedTotal - totalChange) < RECONCILIATION_EPSILON,
   };
 }

@@ -84,6 +84,20 @@ export interface EffectBreakdown {
   residual: number;
 }
 
+/**
+ * Each bucket's share of the overall movement, as a rounded 0-100 integer.
+ * Defined as |bucket effect| / (|price|+|consumption|+|fees|) * 100, so it
+ * always sums to ~100 (modulo rounding) even when effects partially offset —
+ * unlike "% of net change", which is undefined/misleading when, say, a big
+ * price drop and a bigger usage increase net out to a small total change.
+ * Used to explain "what mostly drove this" in plain language.
+ */
+export interface EffectShares {
+  price: number;
+  consumption: number;
+  fees: number;
+}
+
 export interface DecompositionResult {
   periodA: string;
   periodB: string;
@@ -92,6 +106,7 @@ export interface DecompositionResult {
   feesEffect: number;
   feesBreakdown: Array<{ label: string; delta: number }>;
   totalChange: number;
+  shares: EffectShares;
   checksPassed: boolean;
 }
 
