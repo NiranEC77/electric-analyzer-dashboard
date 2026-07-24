@@ -7,6 +7,14 @@ technical.
 
 ### Added
 
+- `packages/adapters/src/meter-readings`: parses a utility account portal's
+  raw meter-reading-history export (distinct from bill PDF/CSV) and
+  computes usage per interval from consecutive register deltas — an
+  independent, finer-grained usage source. Non-monotonic readings (meter
+  reset/misread) are skipped with a warning, never emitted as negative
+  usage. New IndexedDB store, paste-in UI, and dashboard charts
+  (`MeterUsageChart`) with a cross-check against bill-parsed usage when
+  reading dates closely bracket a bill's period.
 - Initial monorepo scaffold: pnpm workspaces (`packages/core`,
   `packages/adapters`, `packages/demo-data`, `packages/timeseries`,
   `apps/web`).

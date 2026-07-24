@@ -30,6 +30,13 @@ Since the original v0.1 scaffold, in order:
    early, by direct request — the regression fit (`fitWeatherModel`,
    baseload trend) is still a stub. Also wired the previously-stubbed
    export/import JSON to real UI buttons.
+5. **Meter-reading history** (`packages/adapters/src/meter-readings`) — a
+   third, independent data source: raw cumulative register readings
+   exported from the utility's account portal (not the bill PDFs). New
+   IndexedDB store, paste-in UI, usage-per-interval charts, and a cross-check
+   against bill-parsed kWh/therms when reading dates closely bracket a
+   bill's period. Meter IDs are on the same "never commit" list as account
+   numbers — handled locally only, fake ones in the test fixture.
 
 See devlog.md for the narrative version of all of this, including the
 verification methodology (hand-derived arithmetic against the real bill,

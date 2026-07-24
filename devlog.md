@@ -172,3 +172,30 @@ baseload-vs-weather model still ahead.
 
 38 tests, all green throughout. Still waiting on the other 13 real bills to
 verify a real multi-month history end to end instead of demo data.
+
+While asking about weather, Niran mentioned he also has meter readings —
+turned out to be a third, independent data source: a raw cumulative
+register-reading history exported from PSE&G's account portal (date,
+service, meter ID, reading type, register value), not the bill PDFs at
+all. Worth pausing to confirm scope before building, since "meter readings"
+could just as easily have meant his own more-frequent manual/smart-meter
+log — a much bigger interval-data-ingestion feature that the already-stubbed
+`packages/timeseries` (`TimeSeriesSource`, untouched) is specifically
+reserved for. Asked; it was the portal export.
+
+Built `packages/adapters/src/meter-readings`: parses the tab-separated
+export, computes usage per interval from consecutive same-service register
+deltas. One real-world edge case handled deliberately rather than
+papered over: meters occasionally read lower than the prior reading (reset,
+misread) — rather than emit negative usage, that interval is skipped and
+reported as a warning. New IndexedDB store, a paste-in textarea (matches
+how the data actually arrives — copied text, not a file), dashboard charts,
+and a cross-check against bill-parsed kWh/therms whenever a reading
+interval's dates closely bracket a bill's period — deliberately not claimed
+when the dates don't actually align closely, rather than fuzzy-matching and
+overclaiming precision.
+
+Meter IDs are explicitly on this project's own "never commit" PII list
+(same tier as account numbers). Grepped the final diff for both of Niran's
+real meter IDs before committing — clean; the committed test fixture uses
+invented ones.

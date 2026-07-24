@@ -1,11 +1,13 @@
 ---
 import Layout from "../components/Layout.astro";
 import { UploadBills } from "../islands/UploadBills";
+import { MeterReadingsUpload } from "../islands/MeterReadingsUpload";
 import { DataManagement } from "../islands/DataManagement";
 ---
 
 <Layout title="Upload bills">
   <UploadBills client:load />
+  <MeterReadingsUpload client:load />
   <DataManagement client:load />
 </Layout>
 

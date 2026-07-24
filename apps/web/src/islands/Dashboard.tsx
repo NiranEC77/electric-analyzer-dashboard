@@ -9,10 +9,12 @@ import {
   type AnalysisContext,
   type BillFacts,
 } from "@electric-analyzer/core";
-import { indexedDbAdapter } from "../lib/storage/indexeddb";
+import { computeUsageFromReadings, type MeterReading } from "@electric-analyzer/adapters";
+import { getAllMeterReadings, indexedDbAdapter } from "../lib/storage/indexeddb";
 import { analyze, effectiveElectricRate, effectiveGasRate } from "../lib/analysis";
 import { CompositionChart } from "./charts/CompositionChart";
 import { DriversOverTimeChart } from "./charts/DriversOverTimeChart";
+import { MeterUsageChart } from "./charts/MeterUsageChart";
 import { MonthlyTotalsChart } from "./charts/MonthlyTotalsChart";
 import { RateLineChart } from "./charts/RateLineChart";
 import { WaterfallChart, type WaterfallStep } from "./charts/WaterfallChart";
@@ -95,6 +97,7 @@ function SuggestionCard({
 export function Dashboard() {
   const [bills, setBills] = useState<BillFacts[] | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [meterReadings, setMeterReadings] = useState<MeterReading[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,12 +119,20 @@ export function Dashboard() {
           setIsDemoMode(true);
         }
       });
+    getAllMeterReadings()
+      .then((readings) => {
+        if (!cancelled) setMeterReadings(readings);
+      })
+      .catch(() => {
+        /* meter readings are a supplementary source; failure to load them shouldn't block the dashboard */
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
   const analysis = useMemo(() => analyze(bills ?? []), [bills]);
+  const meterUsage = useMemo(() => computeUsageFromReadings(meterReadings), [meterReadings]);
 
   if (!bills) {
     return <p className="container">Loading...</p>;
@@ -135,6 +146,30 @@ export function Dashboard() {
   // history.perPeriod[i] is the decomposition from sortedBills[i] to
   // sortedBills[i+1], so its label is the "to" bill's period.
   const driverPeriodLabels = sortedBills.slice(1).map((b) => b.periodStart.value);
+
+  const electricIntervals = meterUsage.intervals.filter((iv) => iv.service === "electric");
+  const gasIntervals = meterUsage.intervals.filter((iv) => iv.service === "gas");
+
+  // Cross-check: only claim a match when a reading interval's dates are
+  // genuinely close to the latest bill's period (independent data, honest
+  // about not claiming precision the dates don't support).
+  function crossCheck(billQuantity: number | undefined, intervals: typeof meterUsage.intervals) {
+    if (billQuantity === undefined || !latest) return null;
+    const toMs = (d: string) => new Date(d).getTime();
+    const toleranceMs = 3 * 24 * 60 * 60 * 1000;
+    const match = intervals.find(
+      (iv) =>
+        Math.abs(toMs(iv.periodStart) - toMs(latest.periodStart.value)) <= toleranceMs &&
+        Math.abs(toMs(iv.periodEnd) - toMs(latest.periodEnd.value)) <= toleranceMs,
+    );
+    if (!match) return null;
+    const diff = match.quantity - billQuantity;
+    const diffPct = billQuantity !== 0 ? (diff / billQuantity) * 100 : 0;
+    return { readingQuantity: match.quantity, diff, diffPct };
+  }
+
+  const electricCrossCheck = crossCheck(latest?.electric?.kWh.value, electricIntervals);
+  const gasCrossCheck = crossCheck(latest?.gas?.therms.value, gasIntervals);
 
   // Base/end bars use decompositionBasis (this period's own charges), matching
   // what the decomposition actually reconciles against — see packages/core.
@@ -255,6 +290,44 @@ export function Dashboard() {
         <h2>Bill composition over time</h2>
         <CompositionChart bills={sortedBills} />
       </section>
+
+      {(electricIntervals.length > 0 || gasIntervals.length > 0) && (
+        <section className="section">
+          <h2>Usage from meter readings</h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>
+            Computed directly from raw meter-register readings, independent of anything parsed from a bill —
+            uploaded on the <a href="/upload">upload page</a>.
+          </p>
+          {electricIntervals.length > 0 && (
+            <>
+              <h3 style={{ fontSize: "1rem" }}>Electric (kWh)</h3>
+              <MeterUsageChart title="Electric usage from meter readings" unitLabel="kWh" intervals={electricIntervals} />
+              {electricCrossCheck && (
+                <p className={Math.abs(electricCrossCheck.diffPct) > 2 ? "verification-error" : ""}>
+                  Latest bill period: bill says <span className="num">{latest?.electric?.kWh.value.toFixed(0)} kWh</span>,
+                  meter readings say <span className="num">{electricCrossCheck.readingQuantity.toFixed(0)} kWh</span> (
+                  {electricCrossCheck.diffPct >= 0 ? "+" : ""}
+                  {electricCrossCheck.diffPct.toFixed(1)}%).
+                </p>
+              )}
+            </>
+          )}
+          {gasIntervals.length > 0 && (
+            <>
+              <h3 style={{ fontSize: "1rem" }}>Gas (therms)</h3>
+              <MeterUsageChart title="Gas usage from meter readings" unitLabel="therms" intervals={gasIntervals} />
+              {gasCrossCheck && (
+                <p className={Math.abs(gasCrossCheck.diffPct) > 2 ? "verification-error" : ""}>
+                  Latest bill period: bill says <span className="num">{latest?.gas?.therms.value.toFixed(0)} therms</span>,
+                  meter readings say <span className="num">{gasCrossCheck.readingQuantity.toFixed(0)} therms</span> (
+                  {gasCrossCheck.diffPct >= 0 ? "+" : ""}
+                  {gasCrossCheck.diffPct.toFixed(1)}%).
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {electricRatePoints.length > 1 && (
         <section className="section">
