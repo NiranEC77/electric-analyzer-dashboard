@@ -14,6 +14,10 @@ export interface MakeBillOptions {
   gasDeliveryCharge?: number;
   fixedAndOtherCharges?: Array<{ label: string; amount: number; category: BillFacts["fixedAndOtherCharges"][number]["category"] }>;
   taxes?: number;
+  /** Balance carried from a prior unpaid bill; adds to totalCharge but not currentCharges. */
+  previousBalance?: number;
+  /** Payments applied against previousBalance (positive amount). */
+  payments?: number;
 }
 
 /** Builds a synthetic BillFacts with totalCharge derived from its parts, for use in tests only. */
@@ -43,11 +47,16 @@ export function makeBill(opts: MakeBillOptions): BillFacts {
       : undefined;
 
   const taxes = opts.taxes ?? 0;
-  const total =
+  const currentCharges =
     (electric ? electric.supplyCharge.value + electric.deliveryCharge.value : 0) +
     (gas ? gas.supplyCharge.value + gas.deliveryCharge.value : 0) +
     fixedAndOtherCharges.reduce((sum, c) => sum + c.amount.value, 0) +
     taxes;
+  const previousBalance = opts.previousBalance ?? 0;
+  const payments = opts.payments ?? 0;
+  const total = currentCharges + previousBalance - payments;
+
+  const carriesBalance = opts.previousBalance !== undefined || opts.payments !== undefined;
 
   return {
     id: opts.id,
@@ -60,6 +69,11 @@ export function makeBill(opts: MakeBillOptions): BillFacts {
     fixedAndOtherCharges,
     taxes: traced(taxes),
     totalCharge: traced(total),
+    // Only set currentCharges when a carried balance makes it differ from
+    // totalCharge, so existing tests continue to exercise the fallback path.
+    ...(carriesBalance ? { currentCharges: traced(currentCharges) } : {}),
+    ...(opts.previousBalance !== undefined ? { previousBalance: traced(previousBalance) } : {}),
+    ...(opts.payments !== undefined ? { payments: traced(payments) } : {}),
     sourceRef: { fileId: "test-fixture", fileName: "synthetic.pdf" },
     schemaVersion: 1,
   };

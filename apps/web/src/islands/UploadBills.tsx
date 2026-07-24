@@ -9,6 +9,8 @@ interface PendingReview {
   fileName: string;
   facts: Partial<BillFacts>;
   warnings: string[];
+  /** Raw extracted text, shown in the review card so a misparse is never a dead end. */
+  extractedText?: string;
 }
 
 const ADAPTERS = [psegAdapter];
@@ -63,11 +65,27 @@ export function UploadBills() {
           const text = await extractPdfText(file);
           const adapter = detectAdapter(ADAPTERS, text);
           if (!adapter) {
-            errors.push(`${file.name}: no adapter recognized this bill — use manual entry instead.`);
+            // Never a dead end: open a review card with the extracted text
+            // visible so the user can fill in the fields by reading their bill.
+            reviews.push({
+              fileId: file.name,
+              fileName: file.name,
+              facts: { sourceRef: { fileId: file.name, fileName: file.name }, schemaVersion: 1 },
+              warnings: [
+                "No adapter recognized this bill automatically. Enter the fields below — the extracted text is shown to help.",
+              ],
+              extractedText: text,
+            });
             continue;
           }
           const result = adapter.parseText(text, file.name);
-          reviews.push({ fileId: file.name, fileName: file.name, facts: result.facts, warnings: result.warnings });
+          reviews.push({
+            fileId: file.name,
+            fileName: file.name,
+            facts: result.facts,
+            warnings: result.warnings,
+            extractedText: text,
+          });
         } catch {
           errors.push(`${file.name}: couldn't read this PDF — use manual entry instead.`);
         }
@@ -91,6 +109,9 @@ export function UploadBills() {
     const gasDelivery = tracedFromInput(review.facts.gas?.deliveryCharge, form.gasDelivery ?? "", fileId);
     const taxes = tracedFromInput(review.facts.taxes, form.taxes ?? "", fileId);
     const totalCharge = tracedFromInput(review.facts.totalCharge, form.totalCharge ?? "", fileId);
+    const currentCharges = tracedFromInput(review.facts.currentCharges, form.currentCharges ?? "", fileId);
+    const previousBalance = tracedFromInput(review.facts.previousBalance, form.previousBalance ?? "", fileId);
+    const payments = tracedFromInput(review.facts.payments, form.payments ?? "", fileId);
 
     if (!taxes || !totalCharge) return;
 
@@ -118,6 +139,9 @@ export function UploadBills() {
       fixedAndOtherCharges: review.facts.fixedAndOtherCharges ?? [],
       taxes,
       totalCharge,
+      ...(currentCharges ? { currentCharges } : {}),
+      ...(previousBalance ? { previousBalance } : {}),
+      ...(payments ? { payments } : {}),
       sourceRef: { fileId, fileName: review.fileName },
       reviewedAt: new Date().toISOString(),
       schemaVersion: 1,
@@ -207,6 +231,9 @@ function ReviewForm({
     gasDelivery: numberInputValue(review.facts.gas?.deliveryCharge.value),
     taxes: numberInputValue(review.facts.taxes?.value),
     totalCharge: numberInputValue(review.facts.totalCharge?.value),
+    currentCharges: numberInputValue(review.facts.currentCharges?.value),
+    previousBalance: numberInputValue(review.facts.previousBalance?.value),
+    payments: numberInputValue(review.facts.payments?.value),
   });
 
   function set(key: string, value: string) {
@@ -261,11 +288,31 @@ function ReviewForm({
         <input value={form.taxes} onChange={(e) => set("taxes", e.target.value)} />
       </label>
       <label>
-        Total charge
+        This month&apos;s charges (excl. carried balance)
+        <input value={form.currentCharges} onChange={(e) => set("currentCharges", e.target.value)} />
+      </label>
+      <label>
+        Balance carried from last bill (if unpaid)
+        <input value={form.previousBalance} onChange={(e) => set("previousBalance", e.target.value)} />
+      </label>
+      <label>
+        Payments applied to prior balance
+        <input value={form.payments} onChange={(e) => set("payments", e.target.value)} />
+      </label>
+      <label>
+        Total amount due
         <input value={form.totalCharge} onChange={(e) => set("totalCharge", e.target.value)} />
       </label>
+      {review.extractedText && (
+        <details className="explain">
+          <summary>Show extracted bill text</summary>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.75rem", maxHeight: "18rem", overflow: "auto" }}>
+            {review.extractedText}
+          </pre>
+        </details>
+      )}
       <button type="button" onClick={() => onConfirm(review, form)}>
-        Confirm & queue
+        Confirm &amp; queue
       </button>
     </section>
   );

@@ -115,6 +115,20 @@ export function Dashboard() {
 
       <h1>Why is your bill going up?</h1>
 
+      {latest?.previousBalance && latest.previousBalance.value > 0 && (
+        <div className="banner" role="note">
+          This bill's <strong>total amount due</strong> includes a{" "}
+          <span className="num">${latest.previousBalance.value.toFixed(2)}</span> balance carried from a prior bill
+          {latest.payments && latest.payments.value > 0 ? (
+            <>
+              {" "}(<span className="num">${latest.payments.value.toFixed(2)}</span> in payments applied)
+            </>
+          ) : null}
+          . The breakdown below is based on <strong>this month's charges only</strong>, so a carried-over balance
+          never gets counted as a price, usage, or fee increase.
+        </div>
+      )}
+
       {decomposition ? (
         <>
           <div className="headline-grid">

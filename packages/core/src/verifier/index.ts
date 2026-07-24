@@ -32,6 +32,9 @@ export function collectGroundedValues(context: AnalysisContext): number[] {
 
   for (const bill of context.bills) {
     values.push(bill.totalCharge.value, bill.taxes.value);
+    if (bill.currentCharges) values.push(bill.currentCharges.value);
+    if (bill.previousBalance) values.push(bill.previousBalance.value);
+    if (bill.payments) values.push(bill.payments.value);
     if (bill.electric) {
       values.push(
         bill.electric.kWh.value,

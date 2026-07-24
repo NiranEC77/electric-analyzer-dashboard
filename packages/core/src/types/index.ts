@@ -50,10 +50,32 @@ export interface BillFacts {
   gas?: GasUsage;
   fixedAndOtherCharges: FixedCharge[];
   taxes: Traced<number>;
+  /**
+   * Total amount due on the bill (the number the customer pays). May include
+   * a balance carried over from an unpaid prior bill, so it is NOT the basis
+   * for decomposition — see currentCharges.
+   */
   totalCharge: Traced<number>;
+  /**
+   * This billing period's own charges and credits, excluding any balance
+   * carried over from a prior unpaid bill. Decomposition runs on this so a
+   * missed payment rolling forward never distorts the price/usage/fees split.
+   * When absent (older fixtures, simple bills), decomposition falls back to
+   * totalCharge — for a fully-paid account the two are equal.
+   */
+  currentCharges?: Traced<number>;
+  /** Unpaid balance carried from the previous bill, if any. Context, not decomposed. */
+  previousBalance?: Traced<number>;
+  /** Payments/credits applied against the previous balance (stored as a positive amount). */
+  payments?: Traced<number>;
   sourceRef: { fileId: string; fileName: string };
   reviewedAt?: string;
   schemaVersion: number;
+}
+
+/** The charges figure decomposition reconciles against: this period's charges, or totalCharge if unknown. */
+export function decompositionBasis(bill: BillFacts): number {
+  return bill.currentCharges?.value ?? bill.totalCharge.value;
 }
 
 export interface EffectBreakdown {

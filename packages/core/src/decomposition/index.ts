@@ -1,3 +1,4 @@
+import { decompositionBasis } from "../types/index.js";
 import type { BillFacts, DecompositionResult, EffectBreakdown } from "../types/index.js";
 
 const RECONCILIATION_EPSILON = 0.01;
@@ -97,7 +98,9 @@ export function decompose(billA: BillFacts, billB: BillFacts): DecompositionResu
   const feesEffect =
     feesBreakdown.reduce((sum, f) => sum + f.delta, 0) + (billB.taxes.value - billA.taxes.value);
 
-  const totalChange = billB.totalCharge.value - billA.totalCharge.value;
+  // Reconcile against this-period charges, not amount due: a balance carried
+  // over from an unpaid prior bill must not be attributed to price/usage/fees.
+  const totalChange = decompositionBasis(billB) - decompositionBasis(billA);
   const computedTotal =
     supply.priceEffect +
     supply.consumptionEffect +

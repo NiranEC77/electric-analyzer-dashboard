@@ -1,22 +1,74 @@
-SYNTHETIC TEST FIXTURE — NOT A REAL BILL. All figures are made up.
+SYNTHETIC TEST FIXTURE — NOT A REAL BILL. All names, addresses, account
+numbers, and amounts are invented. Layout mirrors a real PSE&G residential
+combined electric+gas bill (multi-column, apostrophes flattened to spaces by
+PDF text extraction) so the adapter is tested against realistic structure.
 
-PSE&G — Public Service Electric and Gas Company
-Account Number: 0000-000-000 (synthetic)
-Service Address: 123 Fake Street, Test City, NJ 00000
+Reconciliation (all synthetic):
+  electric 165.00 + gas 290.00 + fees 35.00 = current charges 490.00
+  current 490.00 + prior balance 50.00 - payment 30.00 = amount due 510.00
 
-Billing Period: 05/01/2026 - 05/31/2026
+Total amount due  $510.00
+Please pay by  May 8, 2026
 
-ELECTRIC SERVICE
-Total Electric Usage: 650 kWh
-Electric Supply Charges: $71.50
-Electric Delivery Charges: $38.20
+Your energy bill  Bill date: April 20, 2026
+For the period: March 16, 2026 to April 15, 2026
 
-GAS SERVICE
-Total Gas Usage: 12 therms
-Gas Supply Charges: $9.60
-Gas Delivery Charges: $14.40
+Message Center  TEST CUSTOMER
+ACCOUNT NUMBER  SERVICE ADDRESS
+0000000000  1 EXAMPLE ST
+ANYTOWN NJ 00000-0000
 
-Customer Charge: $5.00
-Sales Tax: $6.87
+Balance remaining from your last bill
+PSE&G balance from last bill  $50.00
+Less Payment received April 10, 2026  thank you]  -$30.00
+Balance remaining from your last bill  $20.00
 
-Total Amount Due: $145.57
+This month s charges and credits
+Gas charges - PSE&G  $290.00
+Plus Electric charges - PSE&G  $165.00
+Plus WorryFree Protection Plan charge - see page 4 for details  $30.00
+Plus Other PSE&G Credits and Charges - see page 5 for details  $5.00
+This month s charges and credits  $490.00
+
+Total amount due by May 8, 2026  $510.00
+
+Details of your electric charges
+Your rate: Residential Service (RS)
+Meter # 00000000  Usage
+Actual reading Apr 15, 2026  20000
+Less Actual reading Mar 16, 2026  19300
+Total electric you used in 30 days  700 kWh
+Delivery charges
+Charges for delivering electric to you:
+For the first  600 kWh x $0.06  $36.00
+For the next  100 kWh x $0.09  $9.00
+Total electric delivery charges  $45.00
+Supply charges
+For the first  600 kWh x $0.16  $96.00
+For the next  100 kWh x $0.24  $24.00
+Total electric supply charges  $120.00
+Total electric charges  $165.00
+
+Details of your gas charges
+Your rate: Residential Service Gas-Heating - RSG (HTG)
+Meter # 00000000  Usage
+Total gas you used in 30 days  300.000 therms
+Delivery charges
+Monthly service charge  $10.00
+Charges for delivering gas to you:
+300.000 therms x $0.50  $150.00
+Balancing Charge  40.000 therms x $0.50  $20.00
+Total gas delivery charges  $180.00
+Supply charges
+Cost of gas:
+300.000 therms x $0.3667  $110.00
+Total gas supply charges  $110.00
+Total gas charges  $290.00
+
+WorryFree Protection Plan
+1 Gas Furnace/Boiler  $30.00
+WorryFree Protection Plan charge  $30.00
+
+Other charges and credits
+Elec Gen/Cap Cost Deferral Recovery  Apr 20, 2026  $5.00
+Total other charges and credits  $5.00

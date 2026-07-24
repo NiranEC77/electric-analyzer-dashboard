@@ -42,6 +42,31 @@ describe("decompose", () => {
     expect(result.delivery.priceEffect + result.delivery.consumptionEffect).toBeCloseTo(0, 6);
   });
 
+  it("ignores a carried-over unpaid balance: decomposes current charges, not amount due", () => {
+    // Identical usage/rates both months. Month B carries an unpaid balance
+    // from month A, so its total amount due is far higher — but nothing about
+    // price, usage, or fees changed. The decomposition must report ~0 change.
+    const a = makeBill({ id: "a", kWh: 500, electricSupplyCharge: 50, electricDeliveryCharge: 25 });
+    const b = makeBill({
+      id: "b",
+      kWh: 500,
+      electricSupplyCharge: 50,
+      electricDeliveryCharge: 25,
+      previousBalance: 75,
+      payments: 0,
+    });
+
+    // Sanity: amount due really did jump by the carried balance.
+    expect(b.totalCharge.value - a.totalCharge.value).toBeCloseTo(75, 6);
+
+    const result = decompose(a, b);
+    expect(result.totalChange).toBeCloseTo(0, 6);
+    expect(result.supply.priceEffect + result.supply.consumptionEffect).toBeCloseTo(0, 6);
+    expect(result.delivery.priceEffect + result.delivery.consumptionEffect).toBeCloseTo(0, 6);
+    expect(result.feesEffect).toBeCloseTo(0, 6);
+    expect(result.checksPassed).toBe(true);
+  });
+
   it("property: price + consumption + fees effects always sum to totalChange", () => {
     fc.assert(
       fc.property(
