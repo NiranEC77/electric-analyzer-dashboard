@@ -46,3 +46,44 @@ binary path as a workaround rather than fighting shell init order.
 Scaffolding the repo skeleton now: workspace config, repo hygiene docs, then
 `packages/core` (types, decomposition math, verifier) as the load-bearing
 piece.
+
+## 2026-07-23 — Full v0.1 scaffold, pushed, deployed
+
+Built the whole lean MVP in one pass and got it green end to end: core
+(decomposition + verifier + rules, 10 tests incl. a 500-run property test
+proving the three effects always reconcile to the total change), adapters
+(PSE&G/manual/CSV against synthetic fixtures), demo-data, the Astro + React
+dashboard, CI, and the pre-commit secret hook. 21 tests, lint clean, build
+clean.
+
+A few things worth remembering for the blog:
+
+- **The verifier earned its keep conceptually but so did testing the
+  secret-scanner.** My first `secret-scan.sh` had two bugs I only caught by
+  actually running it against planted secrets: it false-positived on
+  `.env.example` (matched the *variable name* `SUPABASE_ANON_KEY`, not a
+  value) and it *missed* a real account number because the regex was
+  lowercase and grep wasn't case-insensitive. Rewrote it to match secret
+  *values* (JWTs, `ghp_`/`github_pat_` tokens, PEM blocks) and made the
+  account scan case-insensitive. Lesson: a guardrail you didn't try to break
+  is not a guardrail.
+- **`exactOptionalPropertyTypes` fought the domain.** Adapters produce
+  "maybe this field parsed" partials; that flag turns every optional into
+  ceremony. Dropped it.
+- **Two failures that only show up off your laptop.** CI died on the first
+  push because pnpm was version-pinned in *both* the workflow and
+  `packageManager` (action-setup rejects that). Then Vercel errored because
+  it built from the repo root and never found the Astro app in `apps/web`
+  ("No Output Directory named public") — fixed with a root `vercel.json`
+  pointing at the workspace build and `apps/web/dist`. Both are the class of
+  bug local green never catches.
+- **Secret hygiene under a real PAT.** Token lived only in
+  `~/.secrets/github.env` (600, owned by the tool user), sourced at push
+  time, redacted from all output; never written to `.git/config`. Amusing
+  detour: the first paste was mangled by terminal *focus-event* escape
+  sequences (`ESC[I`/`ESC[O`) landing in stdin ahead of the token — 99 chars
+  instead of 93, 401 every time — until we disabled focus reporting and
+  pattern-extracted the real `github_pat_`.
+
+Live at `https://electric-analyzer-dashboard.vercel.app`. v0.2 (weather
+normalization) is the next real chunk.

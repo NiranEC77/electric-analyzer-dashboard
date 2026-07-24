@@ -4,8 +4,13 @@ Last updated: 2026-07-23
 
 ## Phase
 
-Initial scaffold, pre-first-commit. No code implemented beyond types and
-interface stubs. Nothing pushed to the remote yet.
+v0.1 scaffold complete, pushed, CI green, deployed. Full lean-MVP surface
+implemented and tested (core decomposition + verifier + rules, adapters,
+demo-data, web dashboard). Live at
+`https://electric-analyzer-dashboard.vercel.app` (Vercel auto-deploys `main`).
+CI (GitHub Actions) passing: secret-scan + typecheck/lint/test/build.
+
+Next real work is v0.2 (weather normalization) — see below.
 
 ## Locked decisions (v0.1)
 
@@ -55,12 +60,22 @@ explicitly confirmed with Niran.
   scaffold time — needed later for push/deploy/Supabase wiring, to be read
   from env at use time only, never requested in chat.
 
+## Deploy / CI notes
+
+- Vercel project `electric-analyzer-dashboard` (team `nirans-projects`),
+  auto-deploys `main` from GitHub. Monorepo config lives in root
+  `vercel.json` (build `pnpm --filter web build`, output `apps/web/dist`).
+  Root Directory is repo root, not `apps/web`.
+- GitHub push uses a fine-grained PAT with Contents + Workflows scope, stored
+  at `~/.secrets/github.env` (owned by `claude-orch`, 600), sourced at push
+  time only — never in `.git/config` or the transcript.
+- CI pins pnpm via `packageManager` in package.json only (do NOT also set
+  `version:` in pnpm/action-setup — it errors).
+
 ## Next steps
 
-1. Finish scaffold: `packages/core` types + decomposition math + verifier +
-   property test, `packages/adapters` interface + manual-entry + PSE&G stub,
-   `packages/demo-data`, `packages/timeseries` stub, `apps/web` Astro shell,
-   CI workflow, pre-commit hook.
-2. Local git init + first commit.
-3. Confirm with Niran before pushing to the GitHub remote or wiring up any
-   Vercel deploy.
+1. v0.2: weather normalization (NOAA GHCN degree-day fetch + regression),
+   baseload trend chart, scatter-vs-degree-days chart, baseload/weather
+   rules. Interfaces already stubbed in `packages/core/src/weather`.
+2. Consider rotating the PAT to drop `workflow` scope once no further
+   workflow edits are expected.
